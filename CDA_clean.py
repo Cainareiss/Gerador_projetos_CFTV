@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import PhotoImage, messagebox
+from tkinter import PhotoImage, messagebox, scrolledtext
 import os
 
 class Interface:
@@ -32,7 +32,7 @@ class Interface:
         # Variáveis de controle
         self.cda_visivel = False
         self.cftv_visivel = False
-        self.chatbot_visivel = False  # Nova variável para o Chatbot
+        self.chatbot_visivel = False
         self.tipo_cda_visivel = False
         self.consulta_container = None
 
@@ -69,7 +69,7 @@ class Interface:
         )
         self.cda_botao.pack(pady=10)
 
-        # Novo botão para Chatbot
+        # Botão para Chatbot
         self.chatbot_botao = tk.Button(
             self.sidebar_frame, text="Chatbot", command=self.toggle_lista_chatbot,
             font=self.fonte_botao, fg="white", bg="#8D99AE", relief="flat",
@@ -99,7 +99,7 @@ class Interface:
         # Frames para Listas CDA, CFTV e Chatbot
         self.cda_frame = tk.Frame(self.content_frame, bg="#F5F6F5")
         self.cftv_frame = tk.Frame(self.content_frame, bg="#F5F6F5")
-        self.chatbot_frame = tk.Frame(self.content_frame, bg="#F5F6F5")  # Novo frame para Chatbot
+        self.chatbot_frame = tk.Frame(self.content_frame, bg="#F5F6F5")
 
         # Rodapé
         self.footer_frame = tk.Frame(self.main_frame, bg="#F5F6F5")
@@ -109,6 +109,10 @@ class Interface:
             self.footer_frame, text="Created by Reis ~ Beta 6.5", font=self.fonte_rodape,
             fg="#8D99AE", bg="#F5F6F5", anchor="e"
         ).pack(side=tk.RIGHT, padx=20)
+
+        # Variáveis para o Chatbot
+        self.chatbot_text = None
+        self.chatbot_buttons_frame = None
 
     def criar_campo_cliente(self, label_text):
         frame = tk.Frame(self.main_frame, bg="#F5F6F5")
@@ -169,11 +173,9 @@ class Interface:
         for widget in self.cda_frame.winfo_children():
             widget.destroy()
 
-        # Ajustando o padx e pady do cda_frame para reduzir a margem à esquerda e mover para cima
         self.cda_frame.pack(fill=tk.BOTH, expand=True, padx=(5, 10), pady=(5, 10))
 
         container = tk.Frame(self.cda_frame, bg="#FFFFFF", bd=1, relief="solid")
-        # Alinhando o container à esquerda, ajustando o padx e reduzindo o pady
         container.pack(fill=tk.BOTH, expand=True, padx=(0, 200), pady=(5, 20), anchor="w")
 
         tk.Label(
@@ -245,11 +247,9 @@ class Interface:
         for widget in self.cftv_frame.winfo_children():
             widget.destroy()
 
-        # Ajustando o padx e pady do cftv_frame para reduzir a margem à esquerda e mover para cima
         self.cftv_frame.pack(fill=tk.BOTH, expand=True, padx=(5, 10), pady=(5, 10))
 
         container = tk.Frame(self.cftv_frame, bg="#FFFFFF", bd=1, relief="solid")
-        # Alinhando o container à esquerda, ajustando o padx e reduzindo o pady
         container.pack(fill=tk.BOTH, expand=True, padx=(0, 200), pady=(5, 20), anchor="w")
 
         tk.Label(
@@ -377,8 +377,150 @@ class Interface:
             container, text="Chatbot", font=self.fonte_label, bg="#FFFFFF", fg="#2B2D42"
         ).pack(anchor="w", pady=10)
 
-        # Deixando o container vazio por enquanto, conforme solicitado
-        # Futuras funcionalidades podem ser adicionadas aqui
+        # Área de exibição do chat com barra de rolagem
+        chat_frame = tk.Frame(container, bg="#FFFFFF")
+        chat_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+
+        self.chatbot_text = scrolledtext.ScrolledText(
+            chat_frame, height=20, font=self.fonte_pequena, bg="#F0F0F0", fg="#2B2D42", bd=1, relief="solid", wrap=tk.WORD
+        )
+        self.chatbot_text.pack(fill=tk.BOTH, expand=True)
+        self.chatbot_text.config(state=tk.DISABLED)  # Tornar o texto somente leitura
+
+        # Frame para os botões de opções
+        self.chatbot_buttons_frame = tk.Frame(container, bg="#FFFFFF")
+        self.chatbot_buttons_frame.pack(fill=tk.X, pady=10)
+
+        # Iniciar a conversa
+        self.iniciar_conversa_chatbot()
+
+    def iniciar_conversa_chatbot(self):
+        # Mensagem inicial do bot
+        self.exibir_mensagem_chatbot("Olá! Eu sou o Assistente de Projetos. Como posso ajudar você hoje?\n")
+        self.exibir_mensagem_chatbot("Escolha uma opção abaixo:\n")
+        
+        # Opções iniciais
+        self.exibir_opcoes_chatbot([
+            ("Preciso de ajuda com CFTV", self.opcao_cftv),
+            ("Preciso de ajuda com Controle de Acesso", self.opcao_cda),
+            ("Quero saber mais sobre o programa", self.opcao_sobre_programa),
+            ("Sair do chat", self.opcao_sair)
+        ])
+
+    def exibir_mensagem_chatbot(self, mensagem):
+        self.chatbot_text.config(state=tk.NORMAL)
+        self.chatbot_text.insert(tk.END, mensagem)
+        self.chatbot_text.config(state=tk.DISABLED)
+        self.chatbot_text.see(tk.END)  # Rolar automaticamente para o final
+
+    def exibir_opcoes_chatbot(self, opcoes):
+        # Limpar botões anteriores
+        for widget in self.chatbot_buttons_frame.winfo_children():
+            widget.destroy()
+
+        # Adicionar novos botões de opções
+        for texto, comando in opcoes:
+            btn = tk.Button(
+                self.chatbot_buttons_frame, text=texto, command=comando,
+                font=self.fonte_pequena, fg="white", bg="#2B2D42", relief="flat", width=30
+            )
+            btn.pack(pady=5)
+
+    def opcao_cftv(self):
+        self.exibir_mensagem_chatbot("\nVocê escolheu CFTV!\n")
+        self.exibir_mensagem_chatbot("Eu posso ajudar com a escolha de câmeras, NVRs, DVRs e mais. Sobre o que você gostaria de falar?\n")
+        self.exibir_opcoes_chatbot([
+            ("Câmeras", self.opcao_cftv_cameras),
+            ("NVR ou DVR", self.opcao_cftv_nvr_dvr),
+            ("Outros equipamentos", self.opcao_cftv_outros),
+            ("Voltar", self.iniciar_conversa_chatbot)
+        ])
+
+    def opcao_cftv_cameras(self):
+        self.exibir_mensagem_chatbot("\nSobre câmeras:\n")
+        self.exibir_mensagem_chatbot("Temos modelos como DS-2CD2047G2-LU, que é ótimo para ambientes externos, e DS-2CD1143G0-I, ideal para áreas internas.\n")
+        self.exibir_mensagem_chatbot("Você gostaria de mais detalhes sobre algum modelo?\n")
+        self.exibir_opcoes_chatbot([
+            ("Sim, sobre DS-2CD2047G2-LU", lambda: self.exibir_mensagem_chatbot("\nO modelo DS-2CD2047G2-LU tem resolução de 4MP e visão noturna colorida. É da Hikvision.\n")),
+            ("Sim, sobre DS-2CD1143G0-I", lambda: self.exibir_mensagem_chatbot("\nO modelo DS-2CD1143G0-I tem resolução de 4MP e é mais compacto, ideal para escritórios. É da Hikvision.\n")),
+            ("Não, voltar", self.opcao_cftv)
+        ])
+
+    def opcao_cftv_nvr_dvr(self):
+        self.exibir_mensagem_chatbot("\nSobre NVRs e DVRs:\n")
+        self.exibir_mensagem_chatbot("Os NVRs como o DS-7608NI-K1 suportam até 8 canais, enquanto o DS-7732NI-K4 suporta até 32 canais.\n")
+        self.exibir_mensagem_chatbot("Você precisa de ajuda para escolher um modelo?\n")
+        self.exibir_opcoes_chatbot([
+            ("Sim, para 8 canais", lambda: self.exibir_mensagem_chatbot("\nRecomendo o DS-7608NI-K1. Ele suporta 8 canais e é da Hikvision.\n")),
+            ("Sim, para mais canais", lambda: self.exibir_mensagem_chatbot("\nO DS-7732NI-K4 suporta até 32 canais e é ideal para projetos maiores. É da Hikvision.\n")),
+            ("Não, voltar", self.opcao_cftv)
+        ])
+
+    def opcao_cftv_outros(self):
+        self.exibir_mensagem_chatbot("\nOutros equipamentos de CFTV:\n")
+        self.exibir_mensagem_chatbot("Temos cabos, conectores RJ45, switches PoE, e HDDs para armazenamento.\n")
+        self.exibir_mensagem_chatbot("Qual item você gostaria de saber mais?\n")
+        self.exibir_opcoes_chatbot([
+            ("HDDs", lambda: self.exibir_mensagem_chatbot("\nOferecemos HDDs de 1TB a 4TB, ideais para gravação de vídeo.\n")),
+            ("Switches PoE", lambda: self.exibir_mensagem_chatbot("\nO DS-3E0105P-E é um switch PoE com 5 portas, ótimo para pequenas instalações.\n")),
+            ("Voltar", self.opcao_cftv)
+        ])
+
+    def opcao_cda(self):
+        self.exibir_mensagem_chatbot("\nVocê escolheu Controle de Acesso!\n")
+        self.exibir_mensagem_chatbot("Posso ajudar com leitores faciais, catracas, eletroímãs e mais. Sobre o que você gostaria de falar?\n")
+        self.exibir_opcoes_chatbot([
+            ("Leitores Faciais", self.opcao_cda_leitores),
+            ("Catracas", self.opcao_cda_catracas),
+            ("Outros equipamentos", self.opcao_cda_outros),
+            ("Voltar", self.iniciar_conversa_chatbot)
+        ])
+
+    def opcao_cda_leitores(self):
+        self.exibir_mensagem_chatbot("\nSobre Leitores Faciais:\n")
+        self.exibir_mensagem_chatbot("Temos modelos como DS-K1T341 da Hikvision e ID-FACE da Control iD.\n")
+        self.exibir_mensagem_chatbot("Você gostaria de mais detalhes sobre algum modelo?\n")
+        self.exibir_opcoes_chatbot([
+            ("Sim, sobre DS-K1T341", lambda: self.exibir_mensagem_chatbot("\nO DS-K1T341 é um leitor facial com tela de 4.3 polegadas e suporta até 1.500 faces.\n")),
+            ("Sim, sobre ID-FACE", lambda: self.exibir_mensagem_chatbot("\nO ID-FACE da Control iD é compacto e suporta até 10.000 faces.\n")),
+            ("Não, voltar", self.opcao_cda)
+        ])
+
+    def opcao_cda_catracas(self):
+        self.exibir_mensagem_chatbot("\nSobre Catracas:\n")
+        self.exibir_mensagem_chatbot("Temos modelos como IDBLOCK NEXT FACIAL da Control iD e Ds-k3g411 da Hikvision.\n")
+        self.exibir_mensagem_chatbot("Você gostaria de mais detalhes sobre algum modelo?\n")
+        self.exibir_opcoes_chatbot([
+            ("Sim, sobre IDBLOCK NEXT FACIAL", lambda: self.exibir_mensagem_chatbot("\nA IDBLOCK NEXT FACIAL suporta reconhecimento facial e é ideal para controle de pedestres.\n")),
+            ("Sim, sobre Ds-k3g411", lambda: self.exibir_mensagem_chatbot("\nA Ds-k3g411 da Hikvision é robusta e suporta integração com leitores.\n")),
+            ("Não, voltar", self.opcao_cda)
+        ])
+
+    def opcao_cda_outros(self):
+        self.exibir_mensagem_chatbot("\nOutros equipamentos de Controle de Acesso:\n")
+        self.exibir_mensagem_chatbot("Temos eletroímãs, fontes, fechaduras, botoeiras e controladoras.\n")
+        self.exibir_mensagem_chatbot("Qual item você gostaria de saber mais?\n")
+        self.exibir_opcoes_chatbot([
+            ("Eletroímãs", lambda: self.exibir_mensagem_chatbot("\nO FE 20150 da Intelbras é um eletroímã robusto para portas.\n")),
+            ("Controladoras", lambda: self.exibir_mensagem_chatbot("\nA DS-K2602T da Hikvision suporta até 4 portas.\n")),
+            ("Voltar", self.opcao_cda)
+        ])
+
+    def opcao_sobre_programa(self):
+        self.exibir_mensagem_chatbot("\nSobre o Programa:\n")
+        self.exibir_mensagem_chatbot("Este é o Gerador de Projetos, criado para ajudar na elaboração de projetos de CFTV e Controle de Acesso.\n")
+        self.exibir_mensagem_chatbot("Você pode usar as abas CFTV e Controle de Acesso para montar seu projeto, ou a aba Consulta para obter informações rápidas.\n")
+        self.exibir_mensagem_chatbot("Gostaria de voltar ao menu principal?\n")
+        self.exibir_opcoes_chatbot([
+            ("Sim", self.iniciar_conversa_chatbot),
+            ("Sair do chat", self.opcao_sair)
+        ])
+
+    def opcao_sair(self):
+        self.exibir_mensagem_chatbot("\nObrigado por usar o Chatbot! Até a próxima! 😊\n")
+        self.exibir_opcoes_chatbot([
+            ("Reiniciar conversa", self.iniciar_conversa_chatbot)
+        ])
 
     def toggle_lista_tipos_cda(self):
         if self.cda_visivel:
