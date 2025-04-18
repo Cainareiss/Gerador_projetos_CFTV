@@ -1,20 +1,63 @@
 import tkinter as tk
-from tkinter import PhotoImage, messagebox, scrolledtext
+from tkinter import PhotoImage, messagebox, scrolledtext, TclError
 import os
+import json
+import logging
+from tkinter import ttk
+
+# Configuração de logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class Interface:
     def __init__(self):
         self.window = tk.Tk()
-        self.window.title("GERADOR DE PROJETOS")
+        self.window.title("Gerador de Projetos")
         self.window.geometry("1080x720")
         self.window.configure(bg="#F5F6F5")
+        self.window.resizable(True, True)  # Janela redimensionável
 
-        # Definindo caminhos base para logotipos
+        # Definindo caminhos base
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
         self.logo_dir = os.path.join(self.base_dir, "PROJETO-SISTEMA", "produtos_logos")
-        os.makedirs(self.logo_dir, exist_ok=True)
+        if not os.path.exists(self.logo_dir):
+            os.makedirs(self.logo_dir, exist_ok=True)
+            logging.warning(f"Diretório de logotipos criado: {self.logo_dir}")
 
-        # Fontes (corrigindo "Ariel" para "Arial")
+        # Carregar configuração
+        try:
+            with open(os.path.join(self.base_dir, "config.json"), "r", encoding="utf-8") as f:
+                self.config = json.load(f)
+        except FileNotFoundError:
+            logging.error("Arquivo config.json não encontrado.")
+            messagebox.showerror("Erro", "Arquivo de configuração (config.json) não encontrado.")
+            self.window.destroy()
+            return
+
+        # Dicionário de strings para internacionalização
+        self.strings = {
+            "pt": {
+                "title": "Gerador de Projetos",
+                "menu": "Menu",
+                "consultation": "Consulta",
+                "cctv": "CFTV",
+                "access_control": "Controle de Acesso",
+                "chatbot": "Chatbot",
+                "company_name": "Nome da Empresa:",
+                "enter_company_name": "Digite o nome da empresa",
+                "footer": "Created by Reis ~ Beta 6.6",
+                "confirm_cctv": "Confirmar CFTV",
+                "confirm_access_control": "Confirmar Controle de Acesso",
+                "select_model": "Selecione um modelo",
+                "no_logo": "Logotipo não encontrado",
+                "file_generated": "FOI GERADO UM ARQUIVO DE PROJETO",
+                "warning_company_name": "Por favor, preencha o nome da empresa antes de confirmar os itens.",
+                "invalid_quantity": "Quantidade inválida para {item}.",
+                "no_model_selected": "Por favor, selecione um modelo para {item}.",
+            }
+        }
+        self.lang = "pt"
+
+        # Fontes
         self.fonte_titulo = ("Arial", 24, "bold")
         self.fonte_label = ("Arial", 14, "bold")
         self.fonte_pequena = ("Arial", 12)
@@ -22,134 +65,109 @@ class Interface:
         self.fonte_rodape = ("Arial", 10, "italic")
 
         # Dicionários para armazenar dados
-        self.modelos_cftv = {}
-        self.modelos_cda = {}
-        self.checkboxes_cda = {}
-        self.quantidades_cda = {}
-        self.checkboxes_cftv = {}
-        self.quantidades_cftv = {}
+        self.modelos_cctv = {}
+        self.modelos_controle_acesso = {}
+        self.checkboxes_controle_acesso = {}
+        self.quantidades_controle_acesso = {}
+        self.checkboxes_cctv = {}
+        self.quantidades_cctv = {}
 
         # Variáveis de controle
-        self.cda_visivel = False
-        self.cftv_visivel = False
+        self.controle_acesso_visivel = False
+        self.cctv_visivel = False
         self.chatbot_visivel = False
-        self.tipo_cda_visivel = False
+        self.consulta_visivel = False
         self.consulta_container = None
 
-        # Layout Principal: Divisão em Sidebar e Área de Conteúdo
-        # Sidebar (à esquerda)
-        self.sidebar_frame = tk.Frame(self.window, bg="#2B2D42", width=200)
-        self.sidebar_frame.pack(side=tk.LEFT, fill=tk.Y)
+        # Layout Principal
+        self.window.grid_rowconfigure(0, weight=1)
+        self.window.grid_columnconfigure(1, weight=1)
 
-        # Título na Sidebar
+        # Sidebar
+        self.sidebar_frame = tk.Frame(self.window, bg="#2B2D42", width=200)
+        self.sidebar_frame.grid(row=0, column=0, sticky="ns")
+
         tk.Label(
-            self.sidebar_frame, text="Menu", font=self.fonte_label, fg="white", bg="#2B2D42",
-            pady=20
+            self.sidebar_frame, text=self.strings[self.lang]["menu"],
+            font=self.fonte_label, fg="white", bg="#2B2D42", pady=20
         ).pack(anchor="n")
 
-        # Botões na Sidebar
         self.consulta_botao = tk.Button(
-            self.sidebar_frame, text="Consulta", command=self.toggle_lista_tipos_cda,
-            font=self.fonte_botao, fg="white", bg="#8D99AE", relief="flat",
-            width=15, height=2
+            self.sidebar_frame, text=self.strings[self.lang]["consultation"],
+            command=self.toggle_consulta, font=self.fonte_botao, fg="white",
+            bg="#8D99AE", relief="flat", width=15, height=2
         )
         self.consulta_botao.pack(pady=10)
 
-        self.cftv_botao = tk.Button(
-            self.sidebar_frame, text="CFTV", command=self.toggle_lista_cftv,
-            font=self.fonte_botao, fg="white", bg="#8D99AE", relief="flat",
-            width=15, height=2
+        self.cctv_botao = tk.Button(
+            self.sidebar_frame, text=self.strings[self.lang]["cctv"],
+            command=self.toggle_lista_cctv, font=self.fonte_botao, fg="white",
+            bg="#8D99AE", relief="flat", width=15, height=2
         )
-        self.cftv_botao.pack(pady=10)
+        self.cctv_botao.pack(pady=10)
 
-        self.cda_botao = tk.Button(
-            self.sidebar_frame, text="Controle de Acesso", command=self.toggle_lista_cda,
-            font=self.fonte_botao, fg="white", bg="#8D99AE", relief="flat",
-            width=15, height=2
+        self.controle_acesso_botao = tk.Button(
+            self.sidebar_frame, text=self.strings[self.lang]["access_control"],
+            command=self.toggle_lista_controle_acesso, font=self.fonte_botao, fg="white",
+            bg="#8D99AE", relief="flat", width=15, height=2
         )
-        self.cda_botao.pack(pady=10)
+        self.controle_acesso_botao.pack(pady=10)
 
-        # Botão para Chatbot
         self.chatbot_botao = tk.Button(
-            self.sidebar_frame, text="Chatbot", command=self.toggle_lista_chatbot,
-            font=self.fonte_botao, fg="white", bg="#8D99AE", relief="flat",
-            width=15, height=2
+            self.sidebar_frame, text=self.strings[self.lang]["chatbot"],
+            command=self.toggle_lista_chatbot, font=self.fonte_botao, fg="white",
+            bg="#8D99AE", relief="flat", width=15, height=2
         )
         self.chatbot_botao.pack(pady=10)
 
-        # Área Principal (à direita da Sidebar)
+        # Área Principal
         self.main_frame = tk.Frame(self.window, bg="#F5F6F5")
-        self.main_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=20, pady=20)
+        self.main_frame.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
+        self.main_frame.grid_rowconfigure(1, weight=1)
+        self.main_frame.grid_columnconfigure(0, weight=1)
 
-        # Cabeçalho na Área Principal
         self.header_frame = tk.Frame(self.main_frame, bg="#F5F6F5")
-        self.header_frame.pack(fill=tk.X)
+        self.header_frame.grid(row=0, column=0, sticky="ew")
 
         tk.Label(
-            self.header_frame, text="Gerador de Projetos", font=self.fonte_titulo, fg="#2B2D42", bg="#F5F6F5"
+            self.header_frame, text=self.strings[self.lang]["title"],
+            font=self.fonte_titulo, fg="#2B2D42", bg="#F5F6F5"
         ).pack(anchor="w", pady=10)
 
-        # Campo de Entrada para Nome da Empresa
-        self.nome_label, self.nome_entry = self.criar_campo_cliente("Nome da Empresa:")
+        self.nome_label, self.nome_entry = self.criar_campo_cliente(self.strings[self.lang]["company_name"])
 
-        # Frame para Conteúdo Dinâmico (listas CDA, CFTV, Chatbot, botões de consulta)
         self.content_frame = tk.Frame(self.main_frame, bg="#F5F6F5")
-        self.content_frame.pack(fill=tk.BOTH, expand=True)
+        self.content_frame.grid(row=1, column=0, sticky="nsew")
+        self.content_frame.grid_rowconfigure(0, weight=1)
+        self.content_frame.grid_columnconfigure(0, weight=1)
 
-        # Frames para Listas CDA, CFTV e Chatbot
-        self.cda_frame = tk.Frame(self.content_frame, bg="#F5F6F5")
-        self.cftv_frame = tk.Frame(self.content_frame, bg="#F5F6F5")
+        self.controle_acesso_frame = tk.Frame(self.content_frame, bg="#F5F6F5")
+        self.cctv_frame = tk.Frame(self.content_frame, bg="#F5F6F5")
         self.chatbot_frame = tk.Frame(self.content_frame, bg="#F5F6F5")
 
-        # Rodapé
         self.footer_frame = tk.Frame(self.main_frame, bg="#F5F6F5")
-        self.footer_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        self.footer_frame.grid(row=2, column=0, sticky="ew")
 
         tk.Label(
-            self.footer_frame, text="Created by Reis ~ Beta 6.5", font=self.fonte_rodape,
-            fg="#8D99AE", bg="#F5F6F5", anchor="e"
+            self.footer_frame, text=self.strings[self.lang]["footer"],
+            font=self.fonte_rodape, fg="#8D99AE", bg="#F5F6F5", anchor="e"
         ).pack(side=tk.RIGHT, padx=20)
 
-        # Variáveis para o Chatbot
         self.chatbot_text = None
         self.chatbot_buttons_frame = None
 
     def criar_campo_cliente(self, label_text):
         frame = tk.Frame(self.main_frame, bg="#F5F6F5")
-        frame.pack(fill=tk.X, pady=10)
+        frame.grid(sticky="ew", pady=10)
 
         label = tk.Label(frame, text=label_text, font=self.fonte_label, bg="#F5F6F5", fg="#2B2D42")
         label.pack(anchor="w")
 
         entry = tk.Entry(frame, font=self.fonte_pequena, bg="#FFFFFF", fg="#2B2D42", bd=1, relief="solid", width=50)
-        entry.insert(0, "Digite o nome da empresa")
-        entry.bind("<FocusIn>", lambda event: entry.delete(0, tk.END) if entry.get() == "Digite o nome da empresa" else None)
+        entry.insert(0, self.strings[self.lang]["enter_company_name"])
+        entry.bind("<FocusIn>", lambda event: entry.delete(0, tk.END) if entry.get() == self.strings[self.lang]["enter_company_name"] else None)
         entry.pack(anchor="w", pady=5)
         return label, entry
-
-    def toggle_lista_cda(self):
-        if self.cftv_visivel:
-            for widget in self.cftv_frame.winfo_children():
-                widget.destroy()
-            self.cftv_frame.pack_forget()
-            self.quantidades_cftv.clear()
-            self.cftv_visivel = False
-
-        if self.chatbot_visivel:
-            self.toggle_lista_chatbot()
-
-        if self.tipo_cda_visivel:
-            self.toggle_lista_tipos_cda()
-
-        if self.cda_visivel:
-            for widget in self.cda_frame.winfo_children():
-                widget.destroy()
-            self.cda_frame.pack_forget()
-            self.quantidades_cda.clear()
-            self.cda_visivel = False
-        else:
-            self.mostrar_lista_cda()
-            self.cda_visivel = True
 
     def atualizar_logo(self, modelo_selecionado, modelos, logos, label):
         try:
@@ -158,207 +176,218 @@ class Interface:
             logo_path = os.path.join(self.logo_dir, logo_file)
             if os.path.exists(logo_path):
                 logo = PhotoImage(file=logo_path)
-                label.config(image=logo)
+                label.config(image=logo, text="")
                 label.image = logo
             else:
-                label.config(image="")
+                label.config(image="", text=self.strings[self.lang]["no_logo"])
                 label.image = None
-                print(f"Logo não encontrado: {logo_path}")
-        except (ValueError, tk.TclError) as e:
-            label.config(image="")
+                logging.warning(f"Logo não encontrado: {logo_path}")
+        except (ValueError, TclError) as e:
+            label.config(image="", text=self.strings[self.lang]["no_logo"])
             label.image = None
-            print(f"Erro ao carregar logo: {e}")
+            logging.error(f"Erro ao carregar logo: {e}")
 
-    def mostrar_lista_cda(self):
-        for widget in self.cda_frame.winfo_children():
-            widget.destroy()
-
-        self.cda_frame.pack(fill=tk.BOTH, expand=True, padx=(5, 10), pady=(5, 10))
-
-        container = tk.Frame(self.cda_frame, bg="#FFFFFF", bd=1, relief="solid")
-        container.pack(fill=tk.BOTH, expand=True, padx=(0, 200), pady=(5, 20), anchor="w")
-
-        tk.Label(
-            container, text="Controle de Acesso", font=self.fonte_label, bg="#FFFFFF", fg="#2B2D42"
-        ).pack(anchor="w", pady=10)
-
-        self.checkboxes_cda = {}
-        self.quantidades_cda = {}
-        itens_cda = ["Leitor Facial", "Catraca", "Eletroímã", "Fonte", "Fonte com bateria", "Fechadura", "Botoeira", "Controladora"]
-
-        for item in itens_cda:
-            frame_item = tk.Frame(container, bg="#FFFFFF")
-            frame_item.pack(fill=tk.X, pady=5)
-
-            var = tk.BooleanVar()
-            checkbox = tk.Checkbutton(
-                frame_item, text=item, variable=var, font=self.fonte_pequena,
-                bg="#FFFFFF", fg="#2B2D42", anchor="w", selectcolor="#8D99AE"
-            )
-            checkbox.pack(side=tk.LEFT, padx=10)
-            self.checkboxes_cda[item] = var
-
-            spinbox = tk.Spinbox(
-                frame_item, from_=0, to=100, font=self.fonte_pequena, width=5,
-                justify="center", bg="#FFFFFF", fg="#2B2D42", bd=1, relief="solid"
-            )
-            spinbox.pack(side=tk.RIGHT, padx=10)
-            self.quantidades_cda[item] = spinbox
-
-            modelos, logos = self.get_modelos_logos_cda(item)
-            logo_label = tk.Label(frame_item, bg="#FFFFFF")
-            logo_label.pack(side=tk.LEFT, padx=10)
-
-            if modelos:
-                var_modelo = tk.StringVar(value="Selecione um modelo")
-                dropdown = tk.OptionMenu(
-                    frame_item, var_modelo, *modelos,
-                    command=lambda selected, m=modelos, l=logos, lbl=logo_label: self.atualizar_logo(selected, m, l, lbl)
-                )
-                dropdown.config(font=self.fonte_pequena, bg="#FFFFFF", fg="#2B2D42")
-                dropdown.pack(side=tk.RIGHT, padx=10)
-                self.modelos_cda[item] = var_modelo
-
-        tk.Button(
-            container, text="Confirmar CDA", command=self.confirmar_conclusao_cda,
-            font=self.fonte_pequena, fg="white", bg="#2B2D42", relief="flat", width=20
-        ).pack(anchor="e", pady=10)
-
-    def get_modelos_logos_cda(self, item):
-        modelos_logos = {
-            "Leitor Facial": (["DS-K1T341", "DS-K1T343", "DS-K1T671", "DS-K1T673", "ID-FACE", "ID-FACE MAX"],
-                              ["hikvision_logo.png", "hikvision_logo.png", "hikvision_logo.png", "hikvision_logo.png", "controlid_logo.png", "controlid_logo.png"]),
-            "Catraca": (["IDBLOCK NEXT FACIAL", "IDBLOCK NEXT", "Ds-k3g411"],
-                        ["controlid_logo.png", "controlid_logo.png", "hikvision_logo.png"]),
-            "Eletroímã": (["FE 20150", "DS-K4H258", "AGL-150"],
-                          ["intelbras_logo.png", "hikvision_logo.png", "agl_logo.png"]),
-            "Fonte": (["Fonte 12V", "Fonte 24V", "Fonte 5V"], ["sem_marca.png"] * 3),
-            "Fonte com bateria": (["Fonte 12V", "Fonte 24V", "Fonte 5V"], ["sem_marca.png"] * 3),
-            "Fechadura": (["Fail Safe P/ Vidro Fs 3010 V", "Fail Safe Porta Vidro Fs 2010"],
-                          ["intelbras_logo.png", "intelbras_logo.png"]),
-            "Botoeira": (["DS-K7P02", "BT-3000 IN", "BT-INOX AGL"],
-                         ["hikvision_logo.png", "intelbras_logo.png", "agl_logo.png"]),
-            "Controladora": (["DS-K2602T", "IDBOX", "CT 3000 2PB"],
-                             ["hikvision_logo.png", "controlid_logo.png", "intelbras_logo.png"])
-        }
-        return modelos_logos.get(item, ([], []))
-
-    def mostrar_lista_cftv(self):
-        for widget in self.cftv_frame.winfo_children():
-            widget.destroy()
-
-        self.cftv_frame.pack(fill=tk.BOTH, expand=True, padx=(5, 10), pady=(5, 10))
-
-        container = tk.Frame(self.cftv_frame, bg="#FFFFFF", bd=1, relief="solid")
-        container.pack(fill=tk.BOTH, expand=True, padx=(0, 200), pady=(5, 20), anchor="w")
-
-        tk.Label(
-            container, text="CFTV", font=self.fonte_label, bg="#FFFFFF", fg="#2B2D42"
-        ).pack(anchor="w", pady=10)
-
-        self.checkboxes_cftv = {}
-        self.quantidades_cftv = {}
-        itens_cftv = ["Câmera", "Camera LPR", "NVR", "DVR", "HDD", "Cabos", "Conector RJ45", "Switch PoE"]
-
-        for item in itens_cftv:
-            frame_item = tk.Frame(container, bg="#FFFFFF")
-            frame_item.pack(fill=tk.X, pady=5)
-
-            var = tk.BooleanVar()
-            checkbox = tk.Checkbutton(
-                frame_item, text=item, variable=var, font=self.fonte_pequena,
-                bg="#FFFFFF", fg="#2B2D42", anchor="w", selectcolor="#8D99AE"
-            )
-            checkbox.pack(side=tk.LEFT, padx=10)
-            self.checkboxes_cftv[item] = var
-
-            spinbox = tk.Spinbox(
-                frame_item, from_=0, to=100, font=self.fonte_pequena, width=5,
-                justify="center", bg="#FFFFFF", fg="#2B2D42", bd=1, relief="solid"
-            )
-            spinbox.pack(side=tk.RIGHT, padx=10)
-            self.quantidades_cftv[item] = spinbox
-
-            modelos, logos = self.get_modelos_logos_cftv(item)
-            logo_label = tk.Label(frame_item, bg="#FFFFFF")
-            logo_label.pack(side=tk.LEFT, padx=10)
-
-            if modelos:
-                var_modelo = tk.StringVar(value="Selecione um modelo")
-                dropdown = tk.OptionMenu(
-                    frame_item, var_modelo, *modelos,
-                    command=lambda selected, m=modelos, l=logos, lbl=logo_label: self.atualizar_logo(selected, m, l, lbl)
-                )
-                dropdown.config(font=self.fonte_pequena, bg="#FFFFFF", fg="#2B2D42")
-                dropdown.pack(side=tk.RIGHT, padx=10)
-                self.modelos_cftv[item] = var_modelo
-
-        tk.Button(
-            container, text="Confirmar CFTV", command=self.confirmar_conclusao_cftv,
-            font=self.fonte_pequena, fg="white", bg="#2B2D42", relief="flat", width=20
-        ).pack(anchor="e", pady=10)
-
-    def get_modelos_logos_cftv(self, item):
-        modelos_logos = {
-            "Câmera": (["DS-2CD2047G2-LU", "DS-2CD1143G0-I", "DS-2CD1023G0E"],
-                       ["hikvision_logo.png"] * 3),
-            "Camera LPR": (["DS-2CD7A26G0/P-IZHS", "DS-2CD4A26FWD-IZHS/P", "iDS-2CD7A46G0/P-IZHSY",
-                            "VIP 7280 LPR", "VIP 7230 LPR", "VIP 7225 LPR G2"],
-                           ["hikvision_logo.png", "hikvision_logo.png", "hikvision_logo.png",
-                            "intelbras_logo.png", "intelbras_logo.png", "intelbras_logo.png"]),
-            "NVR": (["DS-7608NI-K1", "DS-7616NI-K2", "DS-7732NI-K4"],
-                    ["hikvision_logo.png"] * 3),
-            "DVR": (["DS-7104HGHI-K1", "DS-7208HUHI-K2", "DS-7216HUHI-K4"],
-                    ["hikvision_logo.png"] * 3),
-            "HDD": (["1TB", "2TB", "3TB", "4TB"],
-                    ["seagate_logo.png"] * 4),
-            "Cabos": (["Cabo Utp", "Cabo coaxial", "Cabo de fibra optica"],
-                      ["caboutp_logo.png", "cabocoaxial_logo.png", "cabofibraotica_logo.png"]),
-            "Conector RJ45": (["RJ45 CAT5", "RJ45 CAT6"],
-                             ["rj45cat6_logo.png", "rj45cat6_logo.png"]),
-            "Switch PoE": (["DS-3E0105P-E", "DS-3E0310P-E", "DS-3E0526P-E"],
-                           ["hikvision_logo.png"] * 3)
-        }
-        return modelos_logos.get(item, ([], []))
-
-    def toggle_lista_cftv(self):
-        if self.cda_visivel:
-            for widget in self.cda_frame.winfo_children():
+    def toggle_lista_controle_acesso(self):
+        if self.cctv_visivel:
+            for widget in self.cctv_frame.winfo_children():
                 widget.destroy()
-            self.cda_frame.pack_forget()
-            self.quantidades_cda.clear()
-            self.cda_visivel = False
+            self.cctv_frame.grid_forget()
+            self.quantidades_cctv.clear()
+            self.cctv_visivel = False
 
         if self.chatbot_visivel:
             self.toggle_lista_chatbot()
 
-        if self.tipo_cda_visivel:
-            self.toggle_lista_tipos_cda()
+        if self.consulta_visivel:
+            self.toggle_consulta()
 
-        if self.cftv_visivel:
-            for widget in self.cftv_frame.winfo_children():
+        if self.controle_acesso_visivel:
+            for widget in self.controle_acesso_frame.winfo_children():
                 widget.destroy()
-            self.cftv_frame.pack_forget()
-            self.quantidades_cftv.clear()
-            self.cftv_visivel = False
+            self.controle_acesso_frame.grid_forget()
+            self.quantidades_controle_acesso.clear()
+            self.controle_acesso_visivel = False
         else:
-            self.mostrar_lista_cftv()
-            self.cftv_visivel = True
+            self.mostrar_lista_controle_acesso()
+            self.controle_acesso_visivel = True
+
+    def mostrar_lista_controle_acesso(self):
+        for widget in self.controle_acesso_frame.winfo_children():
+            widget.destroy()
+
+        self.controle_acesso_frame.grid(row=0, column=0, sticky="nsew", padx=(5, 10), pady=(5, 10))
+
+        container = tk.Frame(self.controle_acesso_frame, bg="#FFFFFF", bd=1, relief="solid")
+        container.grid(sticky="nsew", padx=(0, 200), pady=(5, 20))
+        container.grid_rowconfigure(0, weight=1)
+        container.grid_columnconfigure(0, weight=1)
+
+        tk.Label(
+            container, text=self.strings[self.lang]["access_control"],
+            font=self.fonte_label, bg="#FFFFFF", fg="#2B2D42"
+        ).grid(row=0, column=0, sticky="w", pady=10)
+
+        self.checkboxes_controle_acesso = {}
+        self.quantidades_controle_acesso = {}
+        itens_controle_acesso = self.config["controle_acesso"].keys()
+
+        row = 1
+        for item in itens_controle_acesso:
+            frame_item = tk.Frame(container, bg="#FFFFFF")
+            frame_item.grid(row=row, column=0, sticky="ew", pady=5)
+
+            var = tk.BooleanVar()
+            checkbox = tk.Checkbutton(
+                frame_item, text=item, variable=var, font=self.fonte_pequena,
+                bg="#FFFFFF", fg="#2B2D42", anchor="w", selectcolor="#8D99AE"
+            )
+            checkbox.pack(side=tk.LEFT, padx=10)
+            self.checkboxes_controle_acesso[item] = var
+
+            validate_cmd = self.window.register(self.validate_spinbox)
+            spinbox = tk.Spinbox(
+                frame_item, from_=0, to=100, font=self.fonte_pequena, width=5,
+                justify="center", bg="#FFFFFF", fg="#2B2D42", bd=1, relief="solid",
+                validate="key", validatecommand=(validate_cmd, "%P")
+            )
+            spinbox.pack(side=tk.RIGHT, padx=10)
+            self.quantidades_controle_acesso[item] = spinbox
+
+            modelos = self.config["controle_acesso"][item]["modelos"]
+            logos = self.config["controle_acesso"][item]["logos"]
+            logo_label = tk.Label(frame_item, bg="#FFFFFF")
+            logo_label.pack(side=tk.LEFT, padx=10)
+
+            if modelos:
+                var_modelo = tk.StringVar(value=self.strings[self.lang]["select_model"])
+                dropdown = tk.OptionMenu(
+                    frame_item, var_modelo, *modelos,
+                    command=lambda selected, m=modelos, l=logos, lbl=logo_label: self.atualizar_logo(selected, m, l, lbl)
+                )
+                dropdown.config(font=self.fonte_pequena, bg="#FFFFFF", fg="#2B2D42")
+                dropdown.pack(side=tk.RIGHT, padx=10)
+                self.modelos_controle_acesso[item] = var_modelo
+
+            row += 1
+
+        tk.Button(
+            container, text=self.strings[self.lang]["confirm_access_control"],
+            command=self.confirmar_conclusao_controle_acesso, font=self.fonte_pequena,
+            fg="white", bg="#2B2D42", relief="flat", width=20
+        ).grid(row=row, column=0, sticky="e", pady=10)
+
+    def validate_spinbox(self, value):
+        if value == "":
+            return True
+        try:
+            int_value = int(value)
+            return 0 <= int_value <= 100
+        except ValueError:
+            return False
+
+    def mostrar_lista_cctv(self):
+        for widget in self.cctv_frame.winfo_children():
+            widget.destroy()
+
+        self.cctv_frame.grid(row=0, column=0, sticky="nsew", padx=(5, 10), pady=(5, 10))
+
+        container = tk.Frame(self.cctv_frame, bg="#FFFFFF", bd=1, relief="solid")
+        container.grid(sticky="nsew", padx=(0, 200), pady=(5, 20))
+        container.grid_rowconfigure(0, weight=1)
+        container.grid_columnconfigure(0, weight=1)
+
+        tk.Label(
+            container, text=self.strings[self.lang]["cctv"],
+            font=self.fonte_label, bg="#FFFFFF", fg="#2B2D42"
+        ).grid(row=0, column=0, sticky="w", pady=10)
+
+        self.checkboxes_cctv = {}
+        self.quantidades_cctv = {}
+        itens_cctv = self.config["cctv"].keys()
+
+        row = 1
+        for item in itens_cctv:
+            frame_item = tk.Frame(container, bg="#FFFFFF")
+            frame_item.grid(row=row, column=0, sticky="ew", pady=5)
+
+            var = tk.BooleanVar()
+            checkbox = tk.Checkbutton(
+                frame_item, text=item, variable=var, font=self.fonte_pequena,
+                bg="#FFFFFF", fg="#2B2D42", anchor="w", selectcolor="#8D99AE"
+            )
+            checkbox.pack(side=tk.LEFT, padx=10)
+            self.checkboxes_cctv[item] = var
+
+            validate_cmd = self.window.register(self.validate_spinbox)
+            spinbox = tk.Spinbox(
+                frame_item, from_=0, to=100, font=self.fonte_pequena, width=5,
+                justify="center", bg="#FFFFFF", fg="#2B2D42", bd=1, relief="solid",
+                validate="key", validatecommand=(validate_cmd, "%P")
+            )
+            spinbox.pack(side=tk.RIGHT, padx=10)
+            self.quantidades_cctv[item] = spinbox
+
+            modelos = self.config["cctv"][item]["modelos"]
+            logos = self.config["cctv"][item]["logos"]
+            logo_label = tk.Label(frame_item, bg="#FFFFFF")
+            logo_label.pack(side=tk.LEFT, padx=10)
+
+            if modelos:
+                var_modelo = tk.StringVar(value=self.strings[self.lang]["select_model"])
+                dropdown = tk.OptionMenu(
+                    frame_item, var_modelo, *modelos,
+                    command=lambda selected, m=modelos, l=logos, lbl=logo_label: self.atualizar_logo(selected, m, l, lbl)
+                )
+                dropdown.config(font=self.fonte_pequena, bg="#FFFFFF", fg="#2B2D42")
+                dropdown.pack(side=tk.RIGHT, padx=10)
+                self.modelos_cctv[item] = var_modelo
+
+            row += 1
+
+        tk.Button(
+            container, text=self.strings[self.lang]["confirm_cctv"],
+            command=self.confirmar_conclusao_cctv, font=self.fonte_pequena,
+            fg="white", bg="#2B2D42", relief="flat", width=20
+        ).grid(row=row, column=0, sticky="e", pady=10)
+
+    def toggle_lista_cctv(self):
+        if self.controle_acesso_visivel:
+            for widget in self.controle_acesso_frame.winfo_children():
+                widget.destroy()
+            self.controle_acesso_frame.grid_forget()
+            self.quantidades_controle_acesso.clear()
+            self.controle_acesso_visivel = False
+
+        if self.chatbot_visivel:
+            self.toggle_lista_chatbot()
+
+        if self.consulta_visivel:
+            self.toggle_consulta()
+
+        if self.cctv_visivel:
+            for widget in self.cctv_frame.winfo_children():
+                widget.destroy()
+            self.cctv_frame.grid_forget()
+            self.quantidades_cctv.clear()
+            self.cctv_visivel = False
+        else:
+            self.mostrar_lista_cctv()
+            self.cctv_visivel = True
 
     def toggle_lista_chatbot(self):
-        if self.cda_visivel:
-            self.toggle_lista_cda()
+        if self.controle_acesso_visivel:
+            self.toggle_lista_controle_acesso()
 
-        if self.cftv_visivel:
-            self.toggle_lista_cftv()
+        if self.cctv_visivel:
+            self.toggle_lista_cctv()
 
-        if self.tipo_cda_visivel:
-            self.toggle_lista_tipos_cda()
+        if self.consulta_visivel:
+            self.toggle_consulta()
 
         if self.chatbot_visivel:
             for widget in self.chatbot_frame.winfo_children():
                 widget.destroy()
-            self.chatbot_frame.pack_forget()
+            self.chatbot_frame.grid_forget()
             self.chatbot_visivel = False
         else:
             self.mostrar_lista_chatbot()
@@ -368,41 +397,39 @@ class Interface:
         for widget in self.chatbot_frame.winfo_children():
             widget.destroy()
 
-        self.chatbot_frame.pack(fill=tk.BOTH, expand=True, padx=(5, 10), pady=(5, 10))
+        self.chatbot_frame.grid(row=0, column=0, sticky="nsew", padx=(5, 10), pady=(5, 10))
 
         container = tk.Frame(self.chatbot_frame, bg="#FFFFFF", bd=1, relief="solid")
-        container.pack(fill=tk.BOTH, expand=True, padx=(0, 200), pady=(5, 20), anchor="w")
+        container.grid(sticky="nsew", padx=(0, 200), pady=(5, 20))
+        container.grid_rowconfigure(1, weight=1)
+        container.grid_columnconfigure(0, weight=1)
 
         tk.Label(
-            container, text="Chatbot", font=self.fonte_label, bg="#FFFFFF", fg="#2B2D42"
-        ).pack(anchor="w", pady=10)
+            container, text=self.strings[self.lang]["chatbot"],
+            font=self.fonte_label, bg="#FFFFFF", fg="#2B2D42"
+        ).grid(row=0, column=0, sticky="w", pady=10)
 
-        # Área de exibição do chat com barra de rolagem
         chat_frame = tk.Frame(container, bg="#FFFFFF")
-        chat_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        chat_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
 
         self.chatbot_text = scrolledtext.ScrolledText(
-            chat_frame, height=20, font=self.fonte_pequena, bg="#F0F0F0", fg="#2B2D42", bd=1, relief="solid", wrap=tk.WORD
+            chat_frame, height=20, font=self.fonte_pequena, bg="#F0F0F0",
+            fg="#2B2D42", bd=1, relief="solid", wrap=tk.WORD
         )
         self.chatbot_text.pack(fill=tk.BOTH, expand=True)
-        self.chatbot_text.config(state=tk.DISABLED)  # Tornar o texto somente leitura
+        self.chatbot_text.config(state=tk.DISABLED)
 
-        # Frame para os botões de opções
         self.chatbot_buttons_frame = tk.Frame(container, bg="#FFFFFF")
-        self.chatbot_buttons_frame.pack(fill=tk.X, pady=10)
+        self.chatbot_buttons_frame.grid(row=2, column=0, sticky="ew", pady=10)
 
-        # Iniciar a conversa
         self.iniciar_conversa_chatbot()
 
     def iniciar_conversa_chatbot(self):
-        # Mensagem inicial do bot
         self.exibir_mensagem_chatbot("Olá! Eu sou o Assistente de Projetos. Como posso ajudar você hoje?\n")
         self.exibir_mensagem_chatbot("Escolha uma opção abaixo:\n")
-        
-        # Opções iniciais
         self.exibir_opcoes_chatbot([
-            ("Preciso de ajuda com CFTV", self.opcao_cftv),
-            ("Preciso de ajuda com Controle de Acesso", self.opcao_cda),
+            ("Preciso de ajuda com CFTV", self.opcao_cctv),
+            ("Preciso de ajuda com Controle de Acesso", self.opcao_controle_acesso),
             ("Quero saber mais sobre o programa", self.opcao_sobre_programa),
             ("Sair do chat", self.opcao_sair)
         ])
@@ -411,14 +438,12 @@ class Interface:
         self.chatbot_text.config(state=tk.NORMAL)
         self.chatbot_text.insert(tk.END, mensagem)
         self.chatbot_text.config(state=tk.DISABLED)
-        self.chatbot_text.see(tk.END)  # Rolar automaticamente para o final
+        self.chatbot_text.see(tk.END)
 
     def exibir_opcoes_chatbot(self, opcoes):
-        # Limpar botões anteriores
         for widget in self.chatbot_buttons_frame.winfo_children():
             widget.destroy()
 
-        # Adicionar novos botões de opções
         for texto, comando in opcoes:
             btn = tk.Button(
                 self.chatbot_buttons_frame, text=texto, command=comando,
@@ -426,84 +451,101 @@ class Interface:
             )
             btn.pack(pady=5)
 
-    def opcao_cftv(self):
+    def opcao_cctv(self):
         self.exibir_mensagem_chatbot("\nVocê escolheu CFTV!\n")
         self.exibir_mensagem_chatbot("Eu posso ajudar com a escolha de câmeras, NVRs, DVRs e mais. Sobre o que você gostaria de falar?\n")
         self.exibir_opcoes_chatbot([
-            ("Câmeras", self.opcao_cftv_cameras),
-            ("NVR ou DVR", self.opcao_cftv_nvr_dvr),
-            ("Outros equipamentos", self.opcao_cftv_outros),
+            ("Câmeras", self.opcao_cctv_cameras),
+            ("NVR ou DVR", self.opcao_cctv_nvr_dvr),
+            ("Outros equipamentos", self.opcao_cctv_outros),
             ("Voltar", self.iniciar_conversa_chatbot)
         ])
 
-    def opcao_cftv_cameras(self):
+    def opcao_cctv_cameras(self):
         self.exibir_mensagem_chatbot("\nSobre câmeras:\n")
-        self.exibir_mensagem_chatbot("Temos modelos como DS-2CD2047G2-LU, que é ótimo para ambientes externos, e DS-2CD1143G0-I, ideal para áreas internas.\n")
+        self.exibir_mensagem_chatbot(
+            "Temos modelos como DS-2CD2047G2-LU (4MP, visão noturna colorida, ideal para exteriores), "
+            "DS-2CD1143G0-I (4MP, compacto, ideal para interiores) e DS-2CD1023G0E (2MP, ótimo para monitoramento básico).\n"
+        )
         self.exibir_mensagem_chatbot("Você gostaria de mais detalhes sobre algum modelo?\n")
         self.exibir_opcoes_chatbot([
-            ("Sim, sobre DS-2CD2047G2-LU", lambda: self.exibir_mensagem_chatbot("\nO modelo DS-2CD2047G2-LU tem resolução de 4MP e visão noturna colorida. É da Hikvision.\n")),
-            ("Sim, sobre DS-2CD1143G0-I", lambda: self.exibir_mensagem_chatbot("\nO modelo DS-2CD1143G0-I tem resolução de 4MP e é mais compacto, ideal para escritórios. É da Hikvision.\n")),
-            ("Não, voltar", self.opcao_cftv)
+            ("Sim, sobre DS-2CD2047G2-LU", lambda: self.exibir_mensagem_chatbot(
+                "\nO modelo DS-2CD2047G2-LU tem resolução de 4MP, visão noturna colorida, lente de 2.8mm e proteção IP67. É da Hikvision.\n")),
+            ("Sim, sobre DS-2CD1143G0-I", lambda: self.exibir_mensagem_chatbot(
+                "\nO modelo DS-2CD1143G0-I tem resolução de 4MP, design compacto, lente de 2.8mm e é ideal para escritórios. É da Hikvision.\n")),
+            ("Sim, sobre DS-2CD1023G0E", lambda: self.exibir_mensagem_chatbot(
+                "\nO modelo DS-2CD1023G0E tem resolução de 2MP, lente de 2.8mm, visão noturna IR até 30m, ideal para monitoramento básico. É da Hikvision.\n")),
+            ("Não, voltar", self.opcao_cctv)
         ])
 
-    def opcao_cftv_nvr_dvr(self):
+    def opcao_cctv_nvr_dvr(self):
         self.exibir_mensagem_chatbot("\nSobre NVRs e DVRs:\n")
         self.exibir_mensagem_chatbot("Os NVRs como o DS-7608NI-K1 suportam até 8 canais, enquanto o DS-7732NI-K4 suporta até 32 canais.\n")
         self.exibir_mensagem_chatbot("Você precisa de ajuda para escolher um modelo?\n")
         self.exibir_opcoes_chatbot([
-            ("Sim, para 8 canais", lambda: self.exibir_mensagem_chatbot("\nRecomendo o DS-7608NI-K1. Ele suporta 8 canais e é da Hikvision.\n")),
-            ("Sim, para mais canais", lambda: self.exibir_mensagem_chatbot("\nO DS-7732NI-K4 suporta até 32 canais e é ideal para projetos maiores. É da Hikvision.\n")),
-            ("Não, voltar", self.opcao_cftv)
+            ("Sim, para 8 canais", lambda: self.exibir_mensagem_chatbot(
+                "\nRecomendo o DS-7608NI-K1. Ele suporta 8 canais, resolução até 8MP e é da Hikvision.\n")),
+            ("Sim, para mais canais", lambda: self.exibir_mensagem_chatbot(
+                "\nO DS-7732NI-K4 suporta até 32 canais, resolução até 12MP e é ideal para projetos maiores. É da Hikvision.\n")),
+            ("Não, voltar", self.opcao_cctv)
         ])
 
-    def opcao_cftv_outros(self):
+    def opcao_cctv_outros(self):
         self.exibir_mensagem_chatbot("\nOutros equipamentos de CFTV:\n")
         self.exibir_mensagem_chatbot("Temos cabos, conectores RJ45, switches PoE, e HDDs para armazenamento.\n")
         self.exibir_mensagem_chatbot("Qual item você gostaria de saber mais?\n")
         self.exibir_opcoes_chatbot([
-            ("HDDs", lambda: self.exibir_mensagem_chatbot("\nOferecemos HDDs de 1TB a 4TB, ideais para gravação de vídeo.\n")),
-            ("Switches PoE", lambda: self.exibir_mensagem_chatbot("\nO DS-3E0105P-E é um switch PoE com 5 portas, ótimo para pequenas instalações.\n")),
-            ("Voltar", self.opcao_cftv)
+            ("HDDs", lambda: self.exibir_mensagem_chatbot(
+                "\nOferecemos HDDs de 1TB a 4TB, ideais para gravação de vídeo, compatíveis com NVRs e DVRs.\n")),
+            ("Switches PoE", lambda: self.exibir_mensagem_chatbot(
+                "\nO DS-3E0105P-E é um switch PoE com 5 portas, suporta até 60W, ótimo para pequenas instalações.\n")),
+            ("Voltar", self.opcao_cctv)
         ])
 
-    def opcao_cda(self):
+    def opcao_controle_acesso(self):
         self.exibir_mensagem_chatbot("\nVocê escolheu Controle de Acesso!\n")
         self.exibir_mensagem_chatbot("Posso ajudar com leitores faciais, catracas, eletroímãs e mais. Sobre o que você gostaria de falar?\n")
         self.exibir_opcoes_chatbot([
-            ("Leitores Faciais", self.opcao_cda_leitores),
-            ("Catracas", self.opcao_cda_catracas),
-            ("Outros equipamentos", self.opcao_cda_outros),
+            ("Leitores Faciais", self.opcao_controle_acesso_leitores),
+            ("Catracas", self.opcao_controle_acesso_catracas),
+            ("Outros equipamentos", self.opcao_controle_acesso_outros),
             ("Voltar", self.iniciar_conversa_chatbot)
         ])
 
-    def opcao_cda_leitores(self):
+    def opcao_controle_acesso_leitores(self):
         self.exibir_mensagem_chatbot("\nSobre Leitores Faciais:\n")
         self.exibir_mensagem_chatbot("Temos modelos como DS-K1T341 da Hikvision e ID-FACE da Control iD.\n")
         self.exibir_mensagem_chatbot("Você gostaria de mais detalhes sobre algum modelo?\n")
         self.exibir_opcoes_chatbot([
-            ("Sim, sobre DS-K1T341", lambda: self.exibir_mensagem_chatbot("\nO DS-K1T341 é um leitor facial com tela de 4.3 polegadas e suporta até 1.500 faces.\n")),
-            ("Sim, sobre ID-FACE", lambda: self.exibir_mensagem_chatbot("\nO ID-FACE da Control iD é compacto e suporta até 10.000 faces.\n")),
-            ("Não, voltar", self.opcao_cda)
+            ("Sim, sobre DS-K1T341", lambda: self.exibir_mensagem_chatbot(
+                "\nO DS-K1T341 é um leitor facial com tela de 4.3 polegadas, suporta até 1.500 faces e tem proteção IP65.\n")),
+            ("Sim, sobre ID-FACE", lambda: self.exibir_mensagem_chatbot(
+                "\nO ID-FACE da Control iD é compacto, suporta até 10.000 faces e integra com sistemas de controle.\n")),
+            ("Não, voltar", self.opcao_controle_acesso)
         ])
 
-    def opcao_cda_catracas(self):
+    def opcao_controle_acesso_catracas(self):
         self.exibir_mensagem_chatbot("\nSobre Catracas:\n")
         self.exibir_mensagem_chatbot("Temos modelos como IDBLOCK NEXT FACIAL da Control iD e Ds-k3g411 da Hikvision.\n")
         self.exibir_mensagem_chatbot("Você gostaria de mais detalhes sobre algum modelo?\n")
         self.exibir_opcoes_chatbot([
-            ("Sim, sobre IDBLOCK NEXT FACIAL", lambda: self.exibir_mensagem_chatbot("\nA IDBLOCK NEXT FACIAL suporta reconhecimento facial e é ideal para controle de pedestres.\n")),
-            ("Sim, sobre Ds-k3g411", lambda: self.exibir_mensagem_chatbot("\nA Ds-k3g411 da Hikvision é robusta e suporta integração com leitores.\n")),
-            ("Não, voltar", self.opcao_cda)
+            ("Sim, sobre IDBLOCK NEXT FACIAL", lambda: self.exibir_mensagem_chatbot(
+                "\nA IDBLOCK NEXT FACIAL suporta reconhecimento facial, capacidade para 10.000 usuários, ideal para controle de pedestres.\n")),
+            ("Sim, sobre Ds-k3g411", lambda: self.exibir_mensagem_chatbot(
+                "\nA Ds-k3g411 da Hikvision é robusta, suporta integração com leitores e tem design modular.\n")),
+            ("Não, voltar", self.opcao_controle_acesso)
         ])
 
-    def opcao_cda_outros(self):
+    def opcao_controle_acesso_outros(self):
         self.exibir_mensagem_chatbot("\nOutros equipamentos de Controle de Acesso:\n")
         self.exibir_mensagem_chatbot("Temos eletroímãs, fontes, fechaduras, botoeiras e controladoras.\n")
         self.exibir_mensagem_chatbot("Qual item você gostaria de saber mais?\n")
         self.exibir_opcoes_chatbot([
-            ("Eletroímãs", lambda: self.exibir_mensagem_chatbot("\nO FE 20150 da Intelbras é um eletroímã robusto para portas.\n")),
-            ("Controladoras", lambda: self.exibir_mensagem_chatbot("\nA DS-K2602T da Hikvision suporta até 4 portas.\n")),
-            ("Voltar", self.opcao_cda)
+            ("Eletroímãs", lambda: self.exibir_mensagem_chatbot(
+                "\nO FE 20150 da Intelbras é um eletroímã robusto, suporta até 150kg de força, ideal para portas.\n")),
+            ("Controladoras", lambda: self.exibir_mensagem_chatbot(
+                "\nA DS-K2602T da Hikvision suporta até 4 portas, integração com leitores e protocolo TCP/IP.\n")),
+            ("Voltar", self.opcao_controle_acesso)
         ])
 
     def opcao_sobre_programa(self):
@@ -522,51 +564,52 @@ class Interface:
             ("Reiniciar conversa", self.iniciar_conversa_chatbot)
         ])
 
-    def toggle_lista_tipos_cda(self):
-        if self.cda_visivel:
-            self.toggle_lista_cda()
-        if self.cftv_visivel:
-            self.toggle_lista_cftv()
+    def toggle_consulta(self):
+        if self.controle_acesso_visivel:
+            self.toggle_lista_controle_acesso()
+        if self.cctv_visivel:
+            self.toggle_lista_cctv()
         if self.chatbot_visivel:
             self.toggle_lista_chatbot()
 
-        if self.tipo_cda_visivel:
+        if self.consulta_visivel:
             if self.consulta_container:
                 self.consulta_container.destroy()
-            self.tipo_cda_visivel = False
+            self.consulta_visivel = False
         else:
             self.consulta_container = tk.Frame(self.content_frame, bg="#F5F6F5")
-            self.consulta_container.pack(fill=tk.X, padx=10, pady=10)
+            self.consulta_container.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
 
             tk.Label(
-                self.consulta_container, text="Consulta", font=self.fonte_label, bg="#F5F6F5", fg="#2B2D42"
+                self.consulta_container, text=self.strings[self.lang]["consultation"],
+                font=self.fonte_label, bg="#F5F6F5", fg="#2B2D42"
             ).pack(anchor="w", pady=5)
 
             btn_frame = tk.Frame(self.consulta_container, bg="#F5F6F5")
             btn_frame.pack(anchor="w", pady=10)
 
-            self.tipo_cda_botao = tk.Button(
+            self.porta_botao = tk.Button(
                 btn_frame, text="Porta", command=self.mostrar_menu_porta,
                 font=self.fonte_botao, fg="white", bg="#8D99AE", relief="flat",
                 width=15, height=2
             )
-            self.tipo_cda_botao.pack(side=tk.LEFT, padx=5)
+            self.porta_botao.pack(side=tk.LEFT, padx=5)
 
-            self.botao_pedestre = tk.Button(
+            self.pedestre_botao = tk.Button(
                 btn_frame, text="Pedestre", command=self.mostrar_menu_pedestre,
                 font=self.fonte_botao, fg="white", bg="#8D99AE", relief="flat",
                 width=15, height=2
             )
-            self.botao_pedestre.pack(side=tk.LEFT, padx=5)
+            self.pedestre_botao.pack(side=tk.LEFT, padx=5)
 
-            self.botao_Veicular = tk.Button(
-                btn_frame, text="Veicular", command=self.mostrar_menu_Veicular,
+            self.veicular_botao = tk.Button(
+                btn_frame, text="Veicular", command=self.mostrar_menu_veicular,
                 font=self.fonte_botao, fg="white", bg="#8D99AE", relief="flat",
                 width=15, height=2
             )
-            self.botao_Veicular.pack(side=tk.LEFT, padx=5)
+            self.veicular_botao.pack(side=tk.LEFT, padx=5)
 
-            self.tipo_cda_visivel = True
+            self.consulta_visivel = True
 
     def mostrar_menu_porta(self):
         menu_porta = tk.Menu(self.window, tearoff=0)
@@ -574,8 +617,8 @@ class Interface:
         menu_porta.add_command(label="Vidro/Parede", command=self.mostrar_popup_vidro_parede)
         menu_porta.add_command(label="Porta Comum", command=self.mostrar_popup_porta_comum)
         menu_porta.post(
-            self.tipo_cda_botao.winfo_rootx(),
-            self.tipo_cda_botao.winfo_rooty() + self.tipo_cda_botao.winfo_height())
+            self.porta_botao.winfo_rootx(),
+            self.porta_botao.winfo_rooty() + self.porta_botao.winfo_height())
 
     def mostrar_popup_vidro_vidro(self):
         mensagem = (
@@ -594,7 +637,7 @@ class Interface:
             "##################################\n"
             "   PORTA VIDRO/PAREDE \n"
             "##################################\n\n"
-            "• Fechadura AGL fail safe para vidro e porta a parede\n\n"
+            "• Fechadura AGL fail safe para vidro e porta a paredes\n\n"
             "• Fonte com bateria nobreak\n\n"
             "• Conectores"
         )
@@ -613,11 +656,13 @@ class Interface:
 
     def mostrar_menu_pedestre(self):
         menu_pedestre = tk.Menu(self.window, tearoff=0)
-        menu_pedestre.add_command(label="Torniquete", command=self.mostrar_popup_Torniquete_pedestre)
-        menu_pedestre.add_command(label="Catraca", command=self.mostrar_popup_Catraca_pedestre)
-        menu_pedestre.post(self.botao_pedestre.winfo_rootx(), self.botao_pedestre.winfo_rooty() + self.botao_pedestre.winfo_height())
+        menu_pedestre.add_command(label="Torniquete", command=self.mostrar_popup_torniquete_pedestre)
+        menu_pedestre.add_command(label="Catraca", command=self.mostrar_popup_catraca_pedestre)
+        menu_pedestre.post(
+            self.pedestre_botao.winfo_rootx(),
+            self.pedestre_botao.winfo_rooty() + self.pedestre_botao.winfo_height())
 
-    def mostrar_popup_Torniquete_pedestre(self):
+    def mostrar_popup_torniquete_pedestre(self):
         mensagem = (
             "##################################\n"
             "   TORNIQUETE\n"
@@ -629,7 +674,7 @@ class Interface:
         )
         messagebox.showinfo("Torniquete", mensagem)
 
-    def mostrar_popup_Catraca_pedestre(self):
+    def mostrar_popup_catraca_pedestre(self):
         mensagem = (
             "##################################\n"
             "       CATRACA\n"
@@ -640,14 +685,16 @@ class Interface:
         )
         messagebox.showinfo("Catraca", mensagem)
 
-    def mostrar_menu_Veicular(self):
-        menu_Veicular = tk.Menu(self.window, tearoff=0)
-        menu_Veicular.add_command(label="Totem", command=self.mostrar_popup_Totem_Veicular)
-        menu_Veicular.add_command(label="Lpr", command=self.mostrar_popup_Lpr_Veicular)
-        menu_Veicular.add_command(label="Antena", command=self.mostrar_popup_Antena_Veicular)
-        menu_Veicular.post(self.botao_Veicular.winfo_rootx(), self.botao_Veicular.winfo_rooty() + self.botao_Veicular.winfo_height())
+    def mostrar_menu_veicular(self):
+        menu_veicular = tk.Menu(self.window, tearoff=0)
+        menu_veicular.add_command(label="Totem", command=self.mostrar_popup_totem_veicular)
+        menu_veicular.add_command(label="Lpr", command=self.mostrar_popup_lpr_veicular)
+        menu_veicular.add_command(label="Antena", command=self.mostrar_popup_antena_veicular)
+        menu_veicular.post(
+            self.veicular_botao.winfo_rootx(),
+            self.veicular_botao.winfo_rooty() + self.veicular_botao.winfo_height())
 
-    def mostrar_popup_Totem_Veicular(self):
+    def mostrar_popup_totem_veicular(self):
         mensagem = (
             "##################################\n"
             "        TOTEM VEICULAR\n"
@@ -659,7 +706,7 @@ class Interface:
         )
         messagebox.showinfo("Totem", mensagem)
 
-    def mostrar_popup_Lpr_Veicular(self):
+    def mostrar_popup_lpr_veicular(self):
         mensagem = (
             "##################################\n"
             "       CÂMERAS LPR\n"
@@ -671,7 +718,7 @@ class Interface:
         )
         messagebox.showinfo("Cameras Lpr", mensagem)
 
-    def mostrar_popup_Antena_Veicular(self):
+    def mostrar_popup_antena_veicular(self):
         mensagem = (
             "##################################\n"
             "       ANTENA VEICULAR\n"
@@ -683,60 +730,77 @@ class Interface:
         )
         messagebox.showinfo("Antena", mensagem)
 
-    def confirmar_conclusao_cda(self):
-        nome_empresa = self.nome_entry.get()
-        if not nome_empresa:
-            messagebox.showwarning("Atenção", "Por favor, preencha o nome da empresa antes de confirmar os itens.")
+    def confirmar_conclusao_controle_acesso(self):
+        nome_empresa = self.nome_entry.get().strip()
+        if not nome_empresa or nome_empresa == self.strings[self.lang]["enter_company_name"]:
+            messagebox.showwarning("Atenção", self.strings[self.lang]["warning_company_name"])
             return
 
         selecionados = []
-        for item, var in self.checkboxes_cda.items():
+        for item, var in self.checkboxes_controle_acesso.items():
             if var.get():
-                quantidade = self.quantidades_cda.get(item, None)
-                quantidade_valor = quantidade.get() if quantidade else "N/A"
-
-                if item in self.modelos_cda:
-                    modelo = self.modelos_cda[item].get()
-                    selecionados.append(f"CDA: {item} - Modelo: {modelo} - Quantidade: {quantidade_valor}")
-                else:
-                    selecionados.append(f"CDA: {item} - Quantidade: {quantidade_valor}")
-
-        if selecionados:
-            nome_arquivo = f"{nome_empresa}_CDA.txt"
-            with open(nome_arquivo, "w", encoding="utf-8") as arquivo:
-                arquivo.write("Itens Selecionados (CDA):\n")
-                arquivo.write("\n".join(selecionados))
-            print(f"Arquivo '{nome_arquivo}' criado com sucesso.")
-
-        messagebox.showinfo("Arquivo Gerado", "FOI GERADO UM ARQUIVO DE PROJETO")
-
-    def confirmar_conclusao_cftv(self):
-        nome_empresa = self.nome_entry.get()
-        if not nome_empresa:
-            messagebox.showwarning("Atenção", "Por favor, preencha o nome da empresa antes de confirmar os itens.")
-            return
-
-        selecionados = []
-        for item, var in self.checkboxes_cftv.items():
-            if var.get():
-                spinbox = self.quantidades_cftv[item]
-                quantidade_valor = int(spinbox.get())
+                spinbox = self.quantidades_controle_acesso[item]
+                try:
+                    quantidade_valor = int(spinbox.get())
+                    if quantidade_valor < 0:
+                        raise ValueError
+                except ValueError:
+                    messagebox.showwarning("Erro", self.strings[self.lang]["invalid_quantity"].format(item=item))
+                    return
 
                 if quantidade_valor > 0:
-                    modelo = self.modelos_cftv.get(item, tk.StringVar()).get()
-                    if modelo and modelo != "Selecione um modelo":
-                        selecionados.append(f"CFTV: {item} - Modelo: {modelo} - Quantidade: {quantidade_valor}")
+                    if item in self.modelos_controle_acesso:
+                        modelo = self.modelos_controle_acesso[item].get()
+                        if modelo == self.strings[self.lang]["select_model"]:
+                            messagebox.showwarning("Erro", self.strings[self.lang]["no_model_selected"].format(item=item))
+                            return
+                        selecionados.append(f"Controle de Acesso: {item} - Modelo: {modelo} - Quantidade: {quantidade_valor}")
                     else:
-                        selecionados.append(f"CFTV: {item} - Quantidade: {quantidade_valor}")
+                        selecionados.append(f"Controle de Acesso: {item} - Quantidade: {quantidade_valor}")
 
         if selecionados:
-            nome_arquivo = f"{nome_empresa}_CFTV.txt"
+            nome_arquivo = f"{nome_empresa}_Controle_Acesso.txt"
             with open(nome_arquivo, "w", encoding="utf-8") as arquivo:
-                arquivo.write("Itens Selecionados (CFTV):\n")
+                arquivo.write("Itens Selecionados (Controle de Acesso):\n")
                 arquivo.write("\n".join(selecionados))
-            print(f"Arquivo '{nome_arquivo}' criado com sucesso.")
+            logging.info(f"Arquivo '{nome_arquivo}' criado com sucesso.")
+            messagebox.showinfo("Sucesso", self.strings[self.lang]["file_generated"])
 
-        messagebox.showinfo("Arquivo Gerado", "FOI GERADO UM ARQUIVO DE PROJETO")
+    def confirmar_conclusao_cctv(self):
+        nome_empresa = self.nome_entry.get().strip()
+        if not nome_empresa or nome_empresa == self.strings[self.lang]["enter_company_name"]:
+            messagebox.showwarning("Atenção", self.stringsaliases[self.lang]["warning_company_name"])
+            return
+
+        selecionados = []
+        for item, var in self.checkboxes_cctv.items():
+            if var.get():
+                spinbox = self.quantidades_cctv[item]
+                try:
+                    quantidade_valor = int(spinbox.get())
+                    if quantidade_valor < 0:
+                        raise ValueError
+                except ValueError:
+                    messagebox.showwarning("Erro", self.strings[self.lang]["invalid_quantity"].format(item=item))
+                    return
+
+                if quantidade_valor > 0:
+                    if item in self.modelos_cctv:
+                        modelo = self.modelos_cctv[item].get()
+                        if modelo == self.strings[self.lang]["select_model"]:
+                            messagebox.showwarning("Erro", self.strings[self.lang]["no_model_selected"].format(item=item))
+                            return
+                        selecionados.append(f"CCTV: {item} - Modelo: {modelo} - Quantidade: {quantidade_valor}")
+                    else:
+                        selecionados.append(f"CCTV: {item} - Quantidade: {quantidade_valor}")
+
+        if selecionados:
+            nome_arquivo = f"{nome_empresa}_CCTV.txt"
+            with open(nome_arquivo, "w", encoding="utf-8") as arquivo:
+                arquivo.write("Itens Selecionados (CCTV):\n")
+                arquivo.write("\n".join(selecionados))
+            logging.info(f"Arquivo '{nome_arquivo}' criado com sucesso.")
+            messagebox.showinfo("Sucesso", self.strings[self.lang]["file_generated"])
 
     def iniciar(self):
         self.window.mainloop()

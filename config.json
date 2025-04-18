@@ -1,0 +1,70 @@
+{
+    "cctv": {
+      "Câmera": {
+        "modelos": ["DS-2CD2047G2-LU", "DS-2CD1143G0-I", "DS-2CD1023G0E"],
+        "logos": ["hikvision_logo.png", "hikvision_logo.png", "hikvision_logo.png"]
+      },
+      "Camera LPR": {
+        "modelos": ["DS-2CD7A26G0/P-IZHS", "DS-2CD4A26FWD-IZHS/P", "iDS-2CD7A46G0/P-IZHSY", "VIP 7280 LPR", "VIP 7230 LPR", "VIP 7225 LPR G2"],
+        "logos": ["hikvision_logo.png", "hikvision_logo.png", "hikvision_logo.png", "intelbras_logo.png", "intelbras_logo.png", "intelbras_logo.png"]
+      },
+      "NVR": {
+        "modelos": ["DS-7608NI-K1", "DS-7616NI-K2", "DS-7732NI-K4"],
+        "logos": ["hikvision_logo.png", "hikvision_logo.png", "hikvision_logo.png"]
+      },
+      "DVR": {
+        "modelos": ["DS-7104HGHI-K1", "DS-7208HUHI-K2", "DS-7216HUHI-K4"],
+        "logos": ["hikvision_logo.png", "hikvision_logo.png", "hikvision_logo.png"]
+      },
+      "HDD": {
+        "modelos": ["1TB", "2TB", "3TB", "4TB"],
+        "logos": ["seagate_logo.png", "seagate_logo.png", "seagate_logo.png", "seagate_logo.png"]
+      },
+      "Cabos": {
+        "modelos": ["Cabo Utp", "Cabo coaxial", "Cabo de fibra optica"],
+        "logos": ["caboutp_logo.png", "cabocoaxial_logo.png", "cabofibraotica_logo.png"]
+      },
+      "Conector RJ45": {
+        "modelos": ["RJ45 CAT5", "RJ45 CAT6"],
+        "logos": ["rj45cat6_logo.png", "rj45cat6_logo.png"]
+      },
+      "Switch PoE": {
+        "modelos": ["DS-3E0105P-E", "DS-3E0310P-E", "DS-3E0526P-E"],
+        "logos": ["hikvision_logo.png", "hikvision_logo.png", "hikvision_logo.png"]
+      }
+    },
+    "controle_acesso": {
+      "Leitor Facial": {
+        "modelos": ["DS-K1T341", "DS-K1T343", "DS-K1T671", "DS-K1T673", "ID-FACE", "ID-FACE MAX"],
+        "logos": ["hikvision_logo.png", "hikvision_logo.png", "hikvision_logo.png", "hikvision_logo.png", "controlid_logo.png", "controlid_logo.png"]
+      },
+      "Catraca": {
+        "modelos": ["IDBLOCK NEXT FACIAL", "IDBLOCK NEXT", "Ds-k3g411"],
+        "logos": ["controlid_logo.png", "controlid_logo.png", "hikvision_logo.png"]
+      },
+      "Eletroímã": {
+        "modelos": ["FE 20150", "DS-K4H258", "AGL-150"],
+        "logos": ["intelbras_logo.png", "hikvision_logo.png", "agl_logo.png"]
+      },
+      "Fonte": {
+        "modelos": ["Fonte 12V", "Fonte 24V", "Fonte 5V"],
+        "logos": ["sem_marca.png", "sem_marca.png", "sem_marca.png"]
+      },
+      "Fonte com bateria": {
+        "modelos": ["Fonte 12V", "Fonte 24V", "Fonte 5V"],
+        "logos": ["sem_marca.png", "sem_marca.png", "sem_marca.png"]
+      },
+      "Fechadura": {
+        "modelos": ["Fail Safe P/ Vidro Fs 3010 V", "Fail Safe Porta Vidro Fs 2010"],
+        "logos": ["intelbras_logo.png", "intelbras_logo.png"]
+      },
+      "Botoeira": {
+        "modelos": ["DS-K7P02", "BT-3000 IN", "BT-INOX AGL"],
+        "logos": ["hikvision_logo.png", "intelbras_logo.png", "agl_logo.png"]
+      },
+      "Controladora": {
+        "modelos": ["DS-K2602T", "IDBOX", "CT 3000 2PB"],
+        "logos": ["hikvision_logo.png", "controlid_logo.png", "intelbras_logo.png"]
+      }
+    }
+  }
