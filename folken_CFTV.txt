@@ -1,4 +1,0 @@
-Itens Selecionados (CFTV):
-CFTV: Câmera - Modelo: DS-2CD1143G0-I - Quantidade: 3
-CFTV: Camera LPR - Modelo: DS-2CD4A26FWD-IZHS/P - Quantidade: 3
-CFTV: NVR - Modelo: DS-7608NI-K1 - Quantidade: 3

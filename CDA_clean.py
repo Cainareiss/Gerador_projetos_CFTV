@@ -3,7 +3,7 @@ from tkinter import PhotoImage, messagebox, scrolledtext, TclError
 import os
 import json
 import logging
-from tkinter import ttk
+import re  # Adicionado para sanitizar nomes de arquivos
 
 # Configuração de logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -14,7 +14,7 @@ class Interface:
         self.window.title("Gerador de Projetos")
         self.window.geometry("1080x720")
         self.window.configure(bg="#F5F6F5")
-        self.window.resizable(True, True)  # Janela redimensionável
+        self.window.resizable(True, True)
 
         # Definindo caminhos base
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -44,7 +44,7 @@ class Interface:
                 "chatbot": "Chatbot",
                 "company_name": "Nome da Empresa:",
                 "enter_company_name": "Digite o nome da empresa",
-                "footer": "Created by Reis ~ Beta 6.6",
+                "footer": "Created by Reis ~ Beta 7.0",
                 "confirm_cctv": "Confirmar CFTV",
                 "confirm_access_control": "Confirmar Controle de Acesso",
                 "select_model": "Selecione um modelo",
@@ -53,6 +53,7 @@ class Interface:
                 "warning_company_name": "Por favor, preencha o nome da empresa antes de confirmar os itens.",
                 "invalid_quantity": "Quantidade inválida para {item}.",
                 "no_model_selected": "Por favor, selecione um modelo para {item}.",
+                "file_error": "Erro ao salvar o arquivo: {error}",
             }
         }
         self.lang = "pt"
@@ -78,6 +79,7 @@ class Interface:
         self.chatbot_visivel = False
         self.consulta_visivel = False
         self.consulta_container = None
+        self.nome_entry = None  # Inicialmente None, será criado dinamicamente
 
         # Layout Principal
         self.window.grid_rowconfigure(0, weight=1)
@@ -123,7 +125,7 @@ class Interface:
         # Área Principal
         self.main_frame = tk.Frame(self.window, bg="#F5F6F5")
         self.main_frame.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
-        self.main_frame.grid_rowconfigure(1, weight=1)
+        self.main_frame.grid_rowconfigure(1, weight=1)  # Peso para content_frame
         self.main_frame.grid_columnconfigure(0, weight=1)
 
         self.header_frame = tk.Frame(self.main_frame, bg="#F5F6F5")
@@ -132,9 +134,7 @@ class Interface:
         tk.Label(
             self.header_frame, text=self.strings[self.lang]["title"],
             font=self.fonte_titulo, fg="#2B2D42", bg="#F5F6F5"
-        ).pack(anchor="w", pady=10)
-
-        self.nome_label, self.nome_entry = self.criar_campo_cliente(self.strings[self.lang]["company_name"])
+        ).grid(row=0, column=0, sticky="w", pady=5)
 
         self.content_frame = tk.Frame(self.main_frame, bg="#F5F6F5")
         self.content_frame.grid(row=1, column=0, sticky="nsew")
@@ -156,18 +156,18 @@ class Interface:
         self.chatbot_text = None
         self.chatbot_buttons_frame = None
 
-    def criar_campo_cliente(self, label_text):
-        frame = tk.Frame(self.main_frame, bg="#F5F6F5")
-        frame.grid(sticky="ew", pady=10)
+    def criar_campo_cliente(self, parent):
+        frame = tk.Frame(parent, bg="#FFFFFF")
+        frame.grid(row=0, column=0, sticky="w", pady=5)
 
-        label = tk.Label(frame, text=label_text, font=self.fonte_label, bg="#F5F6F5", fg="#2B2D42")
-        label.pack(anchor="w")
+        label = tk.Label(frame, text=self.strings[self.lang]["company_name"], font=self.fonte_label, bg="#FFFFFF", fg="#2B2D42")
+        label.grid(row=0, column=0, sticky="w")
 
-        entry = tk.Entry(frame, font=self.fonte_pequena, bg="#FFFFFF", fg="#2B2D42", bd=1, relief="solid", width=50)
+        entry = tk.Entry(frame, font=self.fonte_pequena, bg="#FFFFFF", fg="#2B2D42", bd=2, relief="groove", width=50)
         entry.insert(0, self.strings[self.lang]["enter_company_name"])
         entry.bind("<FocusIn>", lambda event: entry.delete(0, tk.END) if entry.get() == self.strings[self.lang]["enter_company_name"] else None)
-        entry.pack(anchor="w", pady=5)
-        return label, entry
+        entry.grid(row=1, column=0, sticky="w", pady=5)
+        return entry
 
     def atualizar_logo(self, modelo_selecionado, modelos, logos, label):
         try:
@@ -194,6 +194,7 @@ class Interface:
             self.cctv_frame.grid_forget()
             self.quantidades_cctv.clear()
             self.cctv_visivel = False
+            self.nome_entry = None
 
         if self.chatbot_visivel:
             self.toggle_lista_chatbot()
@@ -207,6 +208,7 @@ class Interface:
             self.controle_acesso_frame.grid_forget()
             self.quantidades_controle_acesso.clear()
             self.controle_acesso_visivel = False
+            self.nome_entry = None
         else:
             self.mostrar_lista_controle_acesso()
             self.controle_acesso_visivel = True
@@ -219,19 +221,22 @@ class Interface:
 
         container = tk.Frame(self.controle_acesso_frame, bg="#FFFFFF", bd=1, relief="solid")
         container.grid(sticky="nsew", padx=(0, 200), pady=(5, 20))
-        container.grid_rowconfigure(0, weight=1)
+        container.grid_rowconfigure(1, weight=1)
         container.grid_columnconfigure(0, weight=1)
+
+        # Criar campo Nome da Empresa
+        self.nome_entry = self.criar_campo_cliente(container)
 
         tk.Label(
             container, text=self.strings[self.lang]["access_control"],
             font=self.fonte_label, bg="#FFFFFF", fg="#2B2D42"
-        ).grid(row=0, column=0, sticky="w", pady=10)
+        ).grid(row=1, column=0, sticky="w", pady=10)
 
         self.checkboxes_controle_acesso = {}
         self.quantidades_controle_acesso = {}
         itens_controle_acesso = self.config["controle_acesso"].keys()
 
-        row = 1
+        row = 2
         for item in itens_controle_acesso:
             frame_item = tk.Frame(container, bg="#FFFFFF")
             frame_item.grid(row=row, column=0, sticky="ew", pady=5)
@@ -293,19 +298,22 @@ class Interface:
 
         container = tk.Frame(self.cctv_frame, bg="#FFFFFF", bd=1, relief="solid")
         container.grid(sticky="nsew", padx=(0, 200), pady=(5, 20))
-        container.grid_rowconfigure(0, weight=1)
+        container.grid_rowconfigure(1, weight=1)
         container.grid_columnconfigure(0, weight=1)
+
+        # Criar campo Nome da Empresa
+        self.nome_entry = self.criar_campo_cliente(container)
 
         tk.Label(
             container, text=self.strings[self.lang]["cctv"],
             font=self.fonte_label, bg="#FFFFFF", fg="#2B2D42"
-        ).grid(row=0, column=0, sticky="w", pady=10)
+        ).grid(row=1, column=0, sticky="w", pady=10)
 
         self.checkboxes_cctv = {}
         self.quantidades_cctv = {}
         itens_cctv = self.config["cctv"].keys()
 
-        row = 1
+        row = 2
         for item in itens_cctv:
             frame_item = tk.Frame(container, bg="#FFFFFF")
             frame_item.grid(row=row, column=0, sticky="ew", pady=5)
@@ -357,6 +365,7 @@ class Interface:
             self.controle_acesso_frame.grid_forget()
             self.quantidades_controle_acesso.clear()
             self.controle_acesso_visivel = False
+            self.nome_entry = None
 
         if self.chatbot_visivel:
             self.toggle_lista_chatbot()
@@ -370,16 +379,27 @@ class Interface:
             self.cctv_frame.grid_forget()
             self.quantidades_cctv.clear()
             self.cctv_visivel = False
+            self.nome_entry = None
         else:
             self.mostrar_lista_cctv()
             self.cctv_visivel = True
 
     def toggle_lista_chatbot(self):
         if self.controle_acesso_visivel:
-            self.toggle_lista_controle_acesso()
+            for widget in self.controle_acesso_frame.winfo_children():
+                widget.destroy()
+            self.controle_acesso_frame.grid_forget()
+            self.quantidades_controle_acesso.clear()
+            self.controle_acesso_visivel = False
+            self.nome_entry = None
 
         if self.cctv_visivel:
-            self.toggle_lista_cctv()
+            for widget in self.cctv_frame.winfo_children():
+                widget.destroy()
+            self.cctv_frame.grid_forget()
+            self.quantidades_cctv.clear()
+            self.cctv_visivel = False
+            self.nome_entry = None
 
         if self.consulta_visivel:
             self.toggle_consulta()
@@ -388,39 +408,38 @@ class Interface:
             for widget in self.chatbot_frame.winfo_children():
                 widget.destroy()
             self.chatbot_frame.grid_forget()
+            self.chatbot_text = None
+            self.chatbot_buttons_frame = None
             self.chatbot_visivel = False
         else:
             self.mostrar_lista_chatbot()
             self.chatbot_visivel = True
 
     def mostrar_lista_chatbot(self):
-        for widget in self.chatbot_frame.winfo_children():
-            widget.destroy()
+        for widget in self.content_frame.winfo_children():
+            widget.grid_forget()
 
-        self.chatbot_frame.grid(row=0, column=0, sticky="nsew", padx=(5, 10), pady=(5, 10))
+        self.chatbot_frame.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
 
         container = tk.Frame(self.chatbot_frame, bg="#FFFFFF", bd=1, relief="solid")
-        container.grid(sticky="nsew", padx=(0, 200), pady=(5, 20))
+        container.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         container.grid_rowconfigure(1, weight=1)
         container.grid_columnconfigure(0, weight=1)
 
         tk.Label(
             container, text=self.strings[self.lang]["chatbot"],
             font=self.fonte_label, bg="#FFFFFF", fg="#2B2D42"
-        ).grid(row=0, column=0, sticky="w", pady=10)
-
-        chat_frame = tk.Frame(container, bg="#FFFFFF")
-        chat_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
+        ).grid(row=0, column=0, sticky="w", pady=5)
 
         self.chatbot_text = scrolledtext.ScrolledText(
-            chat_frame, height=20, font=self.fonte_pequena, bg="#F0F0F0",
+            container, height=25, font=self.fonte_pequena, bg="#F0F0F0",
             fg="#2B2D42", bd=1, relief="solid", wrap=tk.WORD
         )
-        self.chatbot_text.pack(fill=tk.BOTH, expand=True)
+        self.chatbot_text.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
         self.chatbot_text.config(state=tk.DISABLED)
 
         self.chatbot_buttons_frame = tk.Frame(container, bg="#FFFFFF")
-        self.chatbot_buttons_frame.grid(row=2, column=0, sticky="ew", pady=10)
+        self.chatbot_buttons_frame.grid(row=2, column=0, sticky="ew", pady=5)
 
         self.iniciar_conversa_chatbot()
 
@@ -435,21 +454,23 @@ class Interface:
         ])
 
     def exibir_mensagem_chatbot(self, mensagem):
-        self.chatbot_text.config(state=tk.NORMAL)
-        self.chatbot_text.insert(tk.END, mensagem)
-        self.chatbot_text.config(state=tk.DISABLED)
-        self.chatbot_text.see(tk.END)
+        if self.chatbot_text:
+            self.chatbot_text.config(state=tk.NORMAL)
+            self.chatbot_text.insert(tk.END, mensagem)
+            self.chatbot_text.config(state=tk.DISABLED)
+            self.chatbot_text.see(tk.END)
 
     def exibir_opcoes_chatbot(self, opcoes):
-        for widget in self.chatbot_buttons_frame.winfo_children():
-            widget.destroy()
+        if self.chatbot_buttons_frame:
+            for widget in self.chatbot_buttons_frame.winfo_children():
+                widget.destroy()
 
-        for texto, comando in opcoes:
-            btn = tk.Button(
-                self.chatbot_buttons_frame, text=texto, command=comando,
-                font=self.fonte_pequena, fg="white", bg="#2B2D42", relief="flat", width=30
-            )
-            btn.pack(pady=5)
+            for texto, comando in opcoes:
+                btn = tk.Button(
+                    self.chatbot_buttons_frame, text=texto, command=comando,
+                    font=self.fonte_pequena, fg="white", bg="#2B2D42", relief="flat", width=30
+                )
+                btn.pack(pady=2)
 
     def opcao_cctv(self):
         self.exibir_mensagem_chatbot("\nVocê escolheu CFTV!\n")
@@ -566,9 +587,21 @@ class Interface:
 
     def toggle_consulta(self):
         if self.controle_acesso_visivel:
-            self.toggle_lista_controle_acesso()
+            for widget in self.controle_acesso_frame.winfo_children():
+                widget.destroy()
+            self.controle_acesso_frame.grid_forget()
+            self.quantidades_controle_acesso.clear()
+            self.controle_acesso_visivel = False
+            self.nome_entry = None
+
         if self.cctv_visivel:
-            self.toggle_lista_cctv()
+            for widget in self.cctv_frame.winfo_children():
+                widget.destroy()
+            self.cctv_frame.grid_forget()
+            self.quantidades_cctv.clear()
+            self.cctv_visivel = False
+            self.nome_entry = None
+
         if self.chatbot_visivel:
             self.toggle_lista_chatbot()
 
@@ -578,7 +611,7 @@ class Interface:
             self.consulta_visivel = False
         else:
             self.consulta_container = tk.Frame(self.content_frame, bg="#F5F6F5")
-            self.consulta_container.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
+            self.consulta_container.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
             tk.Label(
                 self.consulta_container, text=self.strings[self.lang]["consultation"],
@@ -731,6 +764,10 @@ class Interface:
         messagebox.showinfo("Antena", mensagem)
 
     def confirmar_conclusao_controle_acesso(self):
+        if not self.nome_entry:
+            messagebox.showwarning("Atenção", self.strings[self.lang]["warning_company_name"])
+            return
+
         nome_empresa = self.nome_entry.get().strip()
         if not nome_empresa or nome_empresa == self.strings[self.lang]["enter_company_name"]:
             messagebox.showwarning("Atenção", self.strings[self.lang]["warning_company_name"])
@@ -759,17 +796,29 @@ class Interface:
                         selecionados.append(f"Controle de Acesso: {item} - Quantidade: {quantidade_valor}")
 
         if selecionados:
-            nome_arquivo = f"{nome_empresa}_Controle_Acesso.txt"
-            with open(nome_arquivo, "w", encoding="utf-8") as arquivo:
-                arquivo.write("Itens Selecionados (Controle de Acesso):\n")
-                arquivo.write("\n".join(selecionados))
-            logging.info(f"Arquivo '{nome_arquivo}' criado com sucesso.")
-            messagebox.showinfo("Sucesso", self.strings[self.lang]["file_generated"])
+            # Sanitizar nome do arquivo
+            nome_empresa_safe = re.sub(r'[<>:"/\\|?*]', '_', nome_empresa)
+            nome_arquivo = f"{nome_empresa_safe}_Controle_Acesso.txt"
+            try:
+                with open(nome_arquivo, "w", encoding="utf-8") as arquivo:
+                    arquivo.write("Itens Selecionados (Controle de Acesso):\n")
+                    arquivo.write("\n".join(selecionados))
+                logging.info(f"Arquivo '{nome_arquivo}' criado com sucesso.")
+                messagebox.showinfo("Sucesso", self.strings[self.lang]["file_generated"])
+            except (PermissionError, OSError) as e:
+                logging.error(f"Erro ao salvar arquivo '{nome_arquivo}': {e}")
+                messagebox.showerror("Erro", self.strings[self.lang]["file_error"].format(error=str(e)))
+        else:
+            messagebox.showwarning("Atenção", "Nenhum item selecionado para gerar o arquivo.")
 
     def confirmar_conclusao_cctv(self):
+        if not self.nome_entry:
+            messagebox.showwarning("Atenção", self.strings[self.lang]["warning_company_name"])
+            return
+
         nome_empresa = self.nome_entry.get().strip()
         if not nome_empresa or nome_empresa == self.strings[self.lang]["enter_company_name"]:
-            messagebox.showwarning("Atenção", self.stringsaliases[self.lang]["warning_company_name"])
+            messagebox.showwarning("Atenção", self.strings[self.lang]["warning_company_name"])
             return
 
         selecionados = []
@@ -795,12 +844,20 @@ class Interface:
                         selecionados.append(f"CCTV: {item} - Quantidade: {quantidade_valor}")
 
         if selecionados:
-            nome_arquivo = f"{nome_empresa}_CCTV.txt"
-            with open(nome_arquivo, "w", encoding="utf-8") as arquivo:
-                arquivo.write("Itens Selecionados (CCTV):\n")
-                arquivo.write("\n".join(selecionados))
-            logging.info(f"Arquivo '{nome_arquivo}' criado com sucesso.")
-            messagebox.showinfo("Sucesso", self.strings[self.lang]["file_generated"])
+            # Sanitizar nome do arquivo
+            nome_empresa_safe = re.sub(r'[<>:"/\\|?*]', '_', nome_empresa)
+            nome_arquivo = f"{nome_empresa_safe}_CCTV.txt"
+            try:
+                with open(nome_arquivo, "w", encoding="utf-8") as arquivo:
+                    arquivo.write("Itens Selecionados (CCTV):\n")
+                    arquivo.write("\n".join(selecionados))
+                logging.info(f"Arquivo '{nome_arquivo}' criado com sucesso.")
+                messagebox.showinfo("Sucesso", self.strings[self.lang]["file_generated"])
+            except (PermissionError, OSError) as e:
+                logging.error(f"Erro ao salvar arquivo '{nome_arquivo}': {e}")
+                messagebox.showerror("Erro", self.strings[self.lang]["file_error"].format(error=str(e)))
+        else:
+            messagebox.showwarning("Atenção", "Nenhum item selecionado para gerar o arquivo.")
 
     def iniciar(self):
         self.window.mainloop()
